@@ -126,6 +126,10 @@ where
         }
         Ok(IDXDecoder { reader, output_type: PhantomData, dimensions })
     }
+
+    pub fn dimensions(&self) -> VectorN<u32, D> {
+        self.dimensions.clone()
+    }
 }
 
 impl<R: Read, T: Type> Iterator for IDXDecoder<R, T, na::U1>
