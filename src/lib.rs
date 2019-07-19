@@ -1,10 +1,13 @@
-use std::{convert::TryInto, io::{self, Read}, marker::PhantomData, mem::size_of};
+use std::{convert::TryInto, io::{self, Read}, marker::PhantomData};
 use nalgebra::{self as na, VectorN, DimName, allocator::Allocator, DefaultAllocator};
 use failure::Fail;
 
-#[doc(hidden)]
-mod private { pub trait Sealed {} }
-use private::Sealed;
+pub mod types {
+    use std::{io::Read, mem::size_of};
+
+    #[doc(hidden)]
+    mod private { pub trait Sealed {} }
+    use private::Sealed;
 
 pub trait Type: Sealed {
     const VALUE: u8;
@@ -68,6 +71,9 @@ new_type_f!(
     pub F32: u32 as f32 = 0x0d,
     pub F64: u64 as f64 = 0x0e,
 );
+}
+
+use types::*;
 
 pub struct IDXDecoder<R, T: Type, D: DimName>
 where
