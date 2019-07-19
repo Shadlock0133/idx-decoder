@@ -167,8 +167,9 @@ where
 #[cfg(test)]
 mod tests {
     use crate::*;
+
     #[test]
-    fn example() {
+    fn example_1d() {
         const DATA: &[u8] = &[
             // magic, type u8, 1 dim
             0, 0, 8, 1,
@@ -182,6 +183,28 @@ mod tests {
         assert_eq!(decoder.next(), Some(1));
         assert_eq!(decoder.next(), Some(2));
         assert_eq!(decoder.next(), Some(3));
+        assert_eq!(decoder.next(), None);
+    }
+
+    #[test]
+    fn example_3d() {
+        const DATA: &[u8] = &[
+            // magic, type u8, 1 dim
+            0, 0, 8, 3,
+            // lens as big endiann u32
+            0, 0, 0, 3,
+            0, 0, 0, 2,
+            0, 0, 0, 2,
+            // items
+            1, 2, 3, 4,
+            5, 6, 7, 8,
+            9, 10, 11, 12];
+        let reader = std::io::Cursor::new(DATA);
+        let mut decoder = IDXDecoder::<_, U8, nalgebra::U3>::new(reader)
+            .expect("Decoder creation error");
+        assert_eq!(decoder.next(), Some(vec![1, 2, 3, 4]));
+        assert_eq!(decoder.next(), Some(vec![5, 6, 7, 8]));
+        assert_eq!(decoder.next(), Some(vec![9, 10, 11, 12]));
         assert_eq!(decoder.next(), None);
     }
 }
