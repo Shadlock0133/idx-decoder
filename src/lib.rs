@@ -113,9 +113,9 @@ where
         reader.read_exact(&mut buf)?;
         if buf[0] != 0 || buf[1] != 0 { Err(IDXError::WrongMagic)? }
         if buf[2] != T::VALUE { Err(IDXError::WrongType(T::VALUE, buf[2]))? }
-        if buf[3] != D::dim() as u8 {
-            Err(IDXError::WrongDimensions(D::dim() as u8, buf[3]))?
-        }
+        let dims: u8 = D::dim().try_into().ok()?;
+        if buf[3] != dims { Err(IDXError::WrongDimensions(dims, buf[3]))? }
+
         // Read dimensions
         // To simplify code we treat amount of items as first dimension
         let mut dimensions: VectorN<u32, D> = na::zero();
