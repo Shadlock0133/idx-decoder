@@ -4,6 +4,8 @@ version = "0.0.1"
 authors = ["Aurora <tomek-kubel2@wp.pl>"]
 edition = "2018"
 license = "MIT"
+description = "An IDX file format decoder"
+repository = "https://github.com/Shadlock0133/idx-decoder"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
