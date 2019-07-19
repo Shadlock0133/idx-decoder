@@ -141,7 +141,7 @@ where
 impl<R: Read, T: Type> Iterator for IDXDecoder<R, T, na::U3>
 where
     DefaultAllocator: Allocator<u32, na::U3>,
-    T::TypeValue: Default + BEReadable<R>,
+    T::TypeValue: Default + Clone + BEReadable<R>,
 {
     type Item = Vec<T::TypeValue>;
     fn next(&mut self) -> Option<Self::Item> {
@@ -149,11 +149,11 @@ where
             self.dimensions[0] -= 1;
             let as_usize = |n: u32| -> Option<usize> { n.try_into().ok() };
             let len = as_usize(self.dimensions[1])?.checked_mul(as_usize(self.dimensions[2])?)?;
-            let items = (0..)
-                .map(|_| T::TypeValue::read_self(&mut self.reader).ok_or(()))
-                .take(len)
-                .collect::<Result<Vec<_>, ()>>().ok()?;
-            Some(items).filter(|i: &Self::Item| i.len() == len)
+            let mut items = vec![Default::default(); len];
+            for item in items.iter_mut() {
+                *item = T::TypeValue::read_self(&mut self.reader)?
+            }
+            Some(items)
         } else {
             None
         }
