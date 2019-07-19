@@ -154,6 +154,8 @@ pub enum IDXError {
     WrongType(u8, u8),
     #[fail(display = "Wrong number of dimensions, expected {}, got {}", _0, _1)]
     WrongDimensions(u8, u8),
+    #[fail(display = "Too many dimensions, must be less than 256")]
+    TooManyDimensons,
     #[fail(display = "{}", _0)]
     IOError(#[cause] io::Error),
 }
@@ -176,7 +178,7 @@ where
         reader.read_exact(&mut buf)?;
         if buf[0] != 0 || buf[1] != 0 { Err(IDXError::WrongMagic)? }
         if buf[2] != T::VALUE { Err(IDXError::WrongType(T::VALUE, buf[2]))? }
-        let dims: u8 = D::dim().try_into().ok()?;
+        let dims: u8 = D::dim().try_into().or(Err(IDXError::TooManyDimensons))?;
         if buf[3] != dims { Err(IDXError::WrongDimensions(dims, buf[3]))? }
 
         // Read dimensions
