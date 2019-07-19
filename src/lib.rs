@@ -1,7 +1,63 @@
+//! ## About
+//! An IDX file format decoding library. (Currently WIP)
+//! 
+//! The main type is [`IDXDecoder`]. It implements Iterator whose Item
+//! correspond to items of file format.
+//! 
+//! ### Type parameters
+//! 
+//! [`IDXDecoder`] takes three type parameters.
+//! - `R`: Reader from which data is taken. Can be file, network stream etc.
+//! - `T`: Type of items produced by Iterator. E.g. U8, I16, F32.
+//!   
+//!   All possible types can be found in [`types`](types/index.html) module
+//! - `D`: Type-level integer of dimensions. Must be less than 256.
+//!   
+//!   If it's less than 128 use nalgebra's U* types.
+//!   For value >=128 use typenum's consts.
+//! 
+//! ### Dimensions
+//! 
+//! For one-dimensional decoder returns simply items.
+//! 
+//! For more dimensions, output is a `Vec` of values containing a single item.
+//! 
+//! E.g. a 3-dimensional decoder where items are of size 4x4 will return `Vec`s
+//! of length 16.
+//! 
+//! First dimension of decoder corresponds to amount of items left.
+//! 
+//! ## Caveats
+//! 
+//! Currently decoder only implements Iterator for 1 and 3 dimensions.
+//! It's simply because I didn't implement other.
+//! 
+//! Crate also assumes that items are stored in big endian way, just like sizes.
+//! 
+//! If you found a bug or the crate is missing some functionality,
+//! add an issue or send a pull request.
+//! 
+//! ## Example
+//! ```ignore
+//! let file = std::fs::File::open("data.idx")?;
+//! let decode = idx_decoder::IDXDecoder::<_, idx_decoder::types::U8, nalgebra::U1>::new(file)?;
+//! for item in decode {
+//!     println!("Item: {}", item);
+//! }
+//! ```
+//! 
+//! ## Acknowledgement
+//! This crate is implemented according to file format
+//! found at <http://yann.lecun.com/exdb/mnist/>
+//! 
+//! [`IDXDecoder`]: struct.IDXDecoder.html
+
 use std::{convert::TryInto, io::{self, Read}, marker::PhantomData};
 use nalgebra::{self as na, VectorN, DimName, allocator::Allocator, DefaultAllocator};
+// use typenum::{self as tn, type_operators::IsLess};
 use failure::Fail;
 
+/// Types used by [`IDXDecoder`](struct.IDXDecoder.html) to specify iterator's output type
 pub mod types {
     use std::{io::Read, mem::size_of};
 
@@ -9,72 +65,77 @@ pub mod types {
     mod private { pub trait Sealed {} }
     use private::Sealed;
 
-pub trait Type: Sealed {
-    const VALUE: u8;
-    type TypeValue;
-}
-
-#[doc(hidden)]
-pub trait BEReadable<R>: Sized {
-    fn read_self(r: &mut R) -> Option<Self>;
-}
-
-macro_rules! new_type_int {
-    ( $( $vis:vis $name:ident : $tv:ty = $value:expr,)* ) => {
-        $(
-            $vis struct $name;
-            impl Sealed for $name {}
-            impl Type for $name {
-                type TypeValue = $tv;
-                const VALUE: u8 = $value;
-            }
-
-            impl<R: Read> BEReadable<R> for $tv {
-                fn read_self(r: &mut R) -> Option<Self> {
-                    let mut buf = [0u8; size_of::<Self>()];
-                    r.read_exact(&mut buf).ok()?;
-                    Some(Self::from_be_bytes(buf))
-                }
-            }
-        )*
+    /// Trait implemented by output types used by IDXDecoder's iterator
+    /// 
+    /// It can't be implemented outside this crate.
+    pub trait Type: Sealed {
+        const VALUE: u8;
+        type TypeValue;
     }
-}
 
-macro_rules! new_type_f {
-    ( $( $vis:vis $name:ident : $uint:ty as $tv:ty = $value:expr,)* ) => {
-        $(
-            $vis struct $name;
-            impl Sealed for $name {}
-            impl Type for $name {
-                type TypeValue = $tv;
-                const VALUE: u8 = $value;
-            }
-
-            impl<R: Read> BEReadable<R> for $tv {
-                fn read_self(r: &mut R) -> Option<Self> {
-                    let mut buf = [0u8; size_of::<Self>()];
-                    r.read_exact(&mut buf).ok()?;
-                    Some(Self::from_bits(<$uint>::from_be_bytes(buf)))
-                }
-            }
-        )*
+    // implemented by types that can be read from reader using big endiann
+    #[doc(hidden)]
+    pub trait BEReadable<R>: Sized {
+        fn read_self(r: &mut R) -> Option<Self>;
     }
-}
 
-new_type_int!(
-    pub U8: u8 = 0x08,
-    pub I8: i8 = 0x09,
-    pub I16: i16 = 0x0b,
-    pub I32: i32 = 0x0c,
-);
-new_type_f!(
-    pub F32: u32 as f32 = 0x0d,
-    pub F64: u64 as f64 = 0x0e,
-);
+    macro_rules! new_type_int {
+        ( $( $vis:vis $name:ident : $tv:ty = $value:expr,)* ) => {
+            $(
+                $vis struct $name;
+                impl Sealed for $name {}
+                impl Type for $name {
+                    type TypeValue = $tv;
+                    const VALUE: u8 = $value;
+                }
+
+                impl<R: Read> BEReadable<R> for $tv {
+                    fn read_self(r: &mut R) -> Option<Self> {
+                        let mut buf = [0u8; size_of::<Self>()];
+                        r.read_exact(&mut buf).ok()?;
+                        Some(Self::from_be_bytes(buf))
+                    }
+                }
+            )*
+        }
+    }
+
+    macro_rules! new_type_f {
+        ( $( $vis:vis $name:ident : $uint:ty as $tv:ty = $value:expr,)* ) => {
+            $(
+                $vis struct $name;
+                impl Sealed for $name {}
+                impl Type for $name {
+                    type TypeValue = $tv;
+                    const VALUE: u8 = $value;
+                }
+
+                impl<R: Read> BEReadable<R> for $tv {
+                    fn read_self(r: &mut R) -> Option<Self> {
+                        let mut buf = [0u8; size_of::<Self>()];
+                        r.read_exact(&mut buf).ok()?;
+                        Some(Self::from_bits(<$uint>::from_be_bytes(buf)))
+                    }
+                }
+            )*
+        }
+    }
+
+    new_type_int!(
+        pub U8: u8 = 0x08,
+        pub I8: i8 = 0x09,
+        pub I16: i16 = 0x0b,
+        pub I32: i32 = 0x0c,
+    );
+    new_type_f!(
+        pub F32: u32 as f32 = 0x0d,
+        pub F64: u64 as f64 = 0x0e,
+    );
 }
 
 use types::*;
 
+/// The decoder. Check [crate level docs](index.html) for more informations
 pub struct IDXDecoder<R, T: Type, D: DimName>
 where
     DefaultAllocator: Allocator<u32, D>
@@ -84,6 +145,7 @@ where
     dimensions: VectorN<u32, D>,
 }
 
+/// Error type return by `IDXDecoder::new`
 #[derive(Debug, Fail)]
 pub enum IDXError {
     #[fail(display = "Wrong magic, first two bytes should be zero")]
@@ -104,12 +166,13 @@ impl From<io::Error> for IDXError {
 
 impl<R: Read, T: Type, D: DimName> IDXDecoder<R, T, D>
 where
+    // D: IsLess<tn::consts::U256>,
     DefaultAllocator: Allocator<u32, D>
 {
-    // Return error in case specified generics don't apply to 
+    /// Returns error in case provided types aren't valid 
     pub fn new(mut reader: R) -> Result<Self, IDXError> {
+        // Read magic and check if it's valid
         let mut buf = [0u8; 4];
-        // Read magic
         reader.read_exact(&mut buf)?;
         if buf[0] != 0 || buf[1] != 0 { Err(IDXError::WrongMagic)? }
         if buf[2] != T::VALUE { Err(IDXError::WrongType(T::VALUE, buf[2]))? }
