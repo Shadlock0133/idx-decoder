@@ -190,6 +190,9 @@ where
         Ok(IDXDecoder { reader, output_type: PhantomData, dimensions })
     }
 
+    /// Size of return values.
+    /// 
+    /// First dimension of decoder corresponds to amount of items left.
     pub fn dimensions(&self) -> VectorN<u32, D> {
         self.dimensions.clone()
     }
