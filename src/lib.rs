@@ -267,7 +267,7 @@ mod tests {
         const DATA: &[u8] = &[
             // magic, type u8, 1 dim
             0, 0, 8, 3,
-            // lens as big endiann u32
+            // lens as big endiann u32: 3 matrices of 2x2
             0, 0, 0, 3,
             0, 0, 0, 2,
             0, 0, 0, 2,
