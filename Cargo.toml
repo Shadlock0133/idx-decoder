@@ -1,6 +1,6 @@
 [package]
 name = "idx-decoder"
-version = "0.0.1"
+version = "0.0.2"
 authors = ["Aurora <tomek-kubel2@wp.pl>"]
 edition = "2018"
 license = "MIT"
@@ -10,6 +10,5 @@ repository = "https://github.com/Shadlock0133/idx-decoder"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-nalgebra = "0.18.0"
-failure = "0.1.5"
-# typenum = "1.10.0"
+nalgebra = "0.19.0"
+thiserror = "1.0.4"

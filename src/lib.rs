@@ -55,7 +55,7 @@
 use std::{convert::TryInto, io::{self, Read}, marker::PhantomData};
 use nalgebra::{self as na, VectorN, DimName, allocator::Allocator, DefaultAllocator};
 // use typenum::{self as tn, type_operators::IsLess};
-use failure::Fail;
+use thiserror::Error;
 
 /// Types used by [`IDXDecoder`](struct.IDXDecoder.html) to specify iterator's output type
 pub mod types {
@@ -141,29 +141,23 @@ where
     DefaultAllocator: Allocator<u32, D>
 {
     reader: R,
-    output_type: PhantomData<T>,
+    output_type: PhantomData<fn() -> T>,
     dimensions: VectorN<u32, D>,
 }
 
 /// Error type return by `IDXDecoder::new`
-#[derive(Debug, Fail)]
+#[derive(Debug, Error)]
 pub enum IDXError {
-    #[fail(display = "Wrong magic, first two bytes should be zero")]
+    #[error("Wrong magic, first two bytes should be zero")]
     WrongMagic,
-    #[fail(display = "Wrong type, expected {}, got {}", _0, _1)]
+    #[error("Wrong type, expected {0}, got {1}")]
     WrongType(u8, u8),
-    #[fail(display = "Wrong number of dimensions, expected {}, got {}", _0, _1)]
+    #[error("Wrong number of dimensions, expected {0}, got {1}")]
     WrongDimensions(u8, u8),
-    #[fail(display = "Too many dimensions, must be less than 256")]
+    #[error("Too many dimensions, must be less than 256")]
     TooManyDimensons,
-    #[fail(display = "{}", _0)]
-    IOError(#[cause] io::Error),
-}
-
-impl From<io::Error> for IDXError {
-    fn from(error: io::Error) -> Self {
-        IDXError::IOError(error)
-    }
+    #[error("{0}")]
+    IOError(#[from] io::Error),
 }
 
 impl<R: Read, T: Type, D: DimName> IDXDecoder<R, T, D>
